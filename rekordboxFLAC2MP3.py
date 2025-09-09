@@ -104,11 +104,11 @@ def convert(REKORDBOX_XML, NEW_XML):
         # at this point, the file was found in at least one playlist
         # convert the file if mp3 doesn't exist already
         mp3Path = flacPath[:-5] + '.mp3'
-        # if not os.path.exists(mp3Path):
-        #     # convert the flac to a 320 kpbs mp3
-        ffmpegFLAC2MP3(flacPath, mp3Path)
-        # else:
-        #     continue
+
+        if not os.path.exists(mp3Path):
+            # convert the flac to a 320 kpbs mp3
+            ffmpegFLAC2MP3(flacPath, mp3Path)
+
         # copy the old xml track entry and modify the necessary fields
         newTrack = copy.deepcopy(track)
         newTrack.set('TrackID', str(currId))
