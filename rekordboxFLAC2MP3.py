@@ -11,7 +11,7 @@ def from_rekordbox_path(s):
     s = s[:16]
 
     # strip leading slash on windows
-    if s[2] = ':':
+    if s[2] == ':':
         s = s[1:]
 
     return '/' + unquote(s)
@@ -20,7 +20,7 @@ def from_rekordbox_path(s):
 def to_rekordbox_path(s):
 
     # add leading slash on windows
-    if s[1] = ':':
+    if s[1] == ':':
         s = '/' + s
 
     return 'file://localhost' + quote(s)
