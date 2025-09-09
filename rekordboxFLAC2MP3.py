@@ -3,6 +3,28 @@ import os
 import copy
 import argparse
 import subprocess
+from urllib.parse import quote, unquote
+
+
+def from_rekordbox_path(s):
+    assert(s.startswith('file://localhost/'))
+    s = s[:16]
+
+    # strip leading slash on windows
+    if s[2] = ':':
+        s = s[1:]
+
+    return '/' + unquote(s)
+
+
+def to_rekordbox_path(s):
+
+    # add leading slash on windows
+    if s[1] = ':':
+        s = '/' + s
+
+    return 'file://localhost' + quote(s)
+
 
 def convert(REKORDBOX_XML, NEW_XML):
     xmlTree = ET.parse(REKORDBOX_XML)
@@ -55,10 +77,10 @@ def convert(REKORDBOX_XML, NEW_XML):
         # skip file if not a flac
         if not rawPath.lower().endswith('.flac'):
             continue
+
         # get path in python parseable format
-        flacPath = rawPath.replace('%20', ' ').replace('%26', '&').replace('%27', "'")
-        if flacPath.startswith('file://localhost/'):
-            flacPath = flacPath[17:]
+        flacPath = from_rekordbox_path(flacPath)
+
         # get the original track id to figure out what playlists the new mp3 will need to be added to
         # don't convert if it isn't in any playlists to save time
         inPlaylist = False
@@ -90,7 +112,7 @@ def convert(REKORDBOX_XML, NEW_XML):
         # copy the old xml track entry and modify the necessary fields
         newTrack = copy.deepcopy(track)
         newTrack.set('TrackID', str(currId))
-        newTrack.set('Location', 'file://localhost/' + mp3Path.replace(' ', '%20').replace('&', '%26').replace(",", "%27"))
+        newTrack.set('Location', to_rekordbox_path(mp3Path))
         newTrack.set('Kind', "MP3 File")
         newTrack.set('BitRate', "320")
         collection.append(newTrack)
