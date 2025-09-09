@@ -8,13 +8,13 @@ from urllib.parse import quote, unquote
 
 def from_rekordbox_path(s):
     assert(s.startswith('file://localhost/'))
-    s = s[:16]
+    s = s[16:]
 
     # strip leading slash on windows
     if s[2] == ':':
         s = s[1:]
 
-    return '/' + unquote(s)
+    return unquote(s)
 
 
 def to_rekordbox_path(s):
