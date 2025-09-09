@@ -79,7 +79,7 @@ def convert(REKORDBOX_XML, NEW_XML):
             continue
 
         # get path in python parseable format
-        flacPath = from_rekordbox_path(flacPath)
+        flacPath = from_rekordbox_path(rawPath)
 
         # get the original track id to figure out what playlists the new mp3 will need to be added to
         # don't convert if it isn't in any playlists to save time
