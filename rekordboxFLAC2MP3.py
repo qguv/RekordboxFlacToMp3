@@ -4,6 +4,8 @@ import copy
 import argparse
 import subprocess
 from urllib.parse import quote, unquote
+import sys
+import pathlib
 
 
 def from_rekordbox_path(s):
@@ -105,7 +107,9 @@ def convert(REKORDBOX_XML, NEW_XML):
         # convert the file if mp3 doesn't exist already
         mp3Path = flacPath[:-5] + '.mp3'
 
-        if not os.path.exists(mp3Path):
+        if os.path.exists(mp3Path):
+            print(f"===\nskipping {mp3Path} (file exists)\n===\n\n")
+        else:
             # convert the flac to a 320 kpbs mp3
             ffmpegFLAC2MP3(flacPath, mp3Path)
 
@@ -124,17 +128,25 @@ def convert(REKORDBOX_XML, NEW_XML):
 
 # convert FLAC at inFlac path to 320 kpbs mp3 at outmp3 path
 def ffmpegFLAC2MP3(inFlac, outmp3):
-    print(inFlac)
-    print(outmp3)
-    subprocess.check_call([
-              "ffmpeg",
-              "-i", inFlac,
-              "-ab", "320k",
-              "-map_metadata", "0",
-              "-id3v2_version", "3",
-              outmp3,
-              "-nostdin",
-    ])
+    try:
+        subprocess.check_call([
+                  "ffmpeg",
+                  "-i", inFlac,
+                  "-ab", "320k",
+                  "-map_metadata", "0",
+                  "-id3v2_version", "3",
+                  outmp3,
+                  "-nostdin",
+        ])
+    except subprocess.CalledProcessError:
+        print(f'removing {outmp3}')
+        pathlib.Path(outmp3).unlink()
+        sys.exit(16)
+    except KeyboardInterrupt:
+        print('interrupted')
+        print(f'removing {outmp3}')
+        pathlib.Path(outmp3).unlink()
+        sys.exit(16)
 
 
 def parse_args():
