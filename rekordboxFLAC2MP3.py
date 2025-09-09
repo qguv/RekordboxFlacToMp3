@@ -119,13 +119,13 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
             '--input', '-i',
-            type=argparse.FileType('r'),
+            type=argparse.FileType('rb'),
             default='-',
             help="old Rekordbox library XML export",
     )
     parser.add_argument(
             '--output','-o',
-            type=argparse.FileType('w'),
+            type=argparse.FileType('wb'),
             default='-',
             help="location to write converted Rekordbox library XML",
     )
