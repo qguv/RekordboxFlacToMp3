@@ -2,6 +2,7 @@ import xml.etree.ElementTree as ET
 import os
 import copy
 import argparse
+import subprocess
 
 def convert(REKORDBOX_XML, NEW_XML):
     xmlTree = ET.parse(REKORDBOX_XML)
@@ -103,7 +104,15 @@ def convert(REKORDBOX_XML, NEW_XML):
 def ffmpegFLAC2MP3(inFlac, outmp3):
     print(inFlac)
     print(outmp3)
-    os.system('ffmpeg -i "{}" -ab 320k -map_metadata 0 -id3v2_version 3 "{}" -nostdin'.format(inFlac, outmp3))
+    subprocess.check_call([
+              "ffmpeg",
+              "-i", inFlac,
+              "-ab", "320k",
+              "-map_metadata", "0",
+              "-id3v2_version", "3",
+              outmp3,
+              "-nostdin",
+    ])
 
 
 def parse_args():
