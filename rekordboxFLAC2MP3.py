@@ -7,6 +7,8 @@ from urllib.parse import quote, unquote
 import sys
 import pathlib
 
+CONVERTED_PLAYLIST_SUFFIX = '_MP3'
+
 
 def from_rekordbox_path(s):
     assert(s.startswith('file://localhost/'))
@@ -28,49 +30,106 @@ def to_rekordbox_path(s):
     return 'file://localhost' + quote(s)
 
 
+class NoConversionNeeded(Exception):
+    pass
+
+
+class Collection:
+    def __init__(self, node):
+        self.node = node
+        self.tracks_by_location = {from_rekordbox_path(track.get('Location')): track for track in self.node)
+
+    def get_converted(self, node):
+        location = from_rekordbox_path(node.get('Location'))
+        if not location.endswith('.flac'):
+            raise NoConversionNeeded()
+        converted_location = location[:-5] + '.mp3'
+        try:
+            return self.tracks_by_location[converted_location]
+        except KeyError:
+            ffmpegFLAC2MP3(location, converted_location)
+            # TODO FIXME: actually convert and update library
+            # TODO: unknown how track IDs get assigned
+            # TODO: remember to update the Entries key on the collection node
+
+
+class Playlist:
+    def __init__(self, node, ancestors, collection):
+        assert(str(node.get('Type')) == "1")
+
+        self.node = node
+        self.ancestors = ancestors
+        self.collection = collection
+
+        self.name = self.node.get('Name')
+        assert(not name.endswith(CONVERTED_PLAYLIST_SUFFIX))
+
+        self.tracks = list(self._get_tracks())
+
+
+    def _get_tracks(self):
+        for track_ref in self.node:
+            assert(track_ref.tag == 'TRACK')
+            trackid = track_ref.get('Key')
+            print(f"looking for track {trackid}")
+            yield self.collection.node.find(f"TRACK[@TrackID='{trackid}']")
+
+    def convert(self):
+        assert(not self.name.endswith(CONVERTED_PLAYLIST_SUFFIX))
+        newname = self.name + CONVERTED_PLAYLIST_SUFFIX
+
+        # find self in parent
+        parent = self.ancestors[-1]
+        i = list(parent).index(self.node)
+
+        # if already converted, delete
+        if i + 1 < len(parent) and parent[i+1].get('Name') == newname:
+            parent.remove(parent[i+1])
+
+        converted = copy.deepcopy(self.node)
+        converted.set('Name', newname)
+        #TODO actually convert the tracks using Collection.get_converted(track_node)
+        parent.insert(i+1, converted)
+
+    @classmethod
+    def get_originals(cls, node, collection, ancestors=tuple()):
+        assert(str(node.get('Type')) == '0')
+        for child in node:
+
+            # recurse on collections
+            if str(child.get('Type')) == '0':
+                yield from cls.get_originals(child, collection, ancestors=(*ancestors, node))
+                continue
+
+            # skip converted playlists
+            if child.get('Name').endswith(CONVERTED_PLAYLIST_SUFFIX):
+                continue
+
+            yield cls(child, (*ancestors, node), collection)
+
+    def __repr__(self):
+        s = ' -> '.join(x.get('Name') for x in (*self.ancestors, self.node)[1:])
+        s = f'<Playlist: {s}>'
+        return s
+
+
+'''
+def get_playlist_node(playlists_tree, path):
+    searchStr = '/'.join(f"NODE[@Name='{p}']" for p in path)
+    return playlists_tree.find(searchStr)
+'''
+
+
 def convert(REKORDBOX_XML, NEW_XML):
-    xmlTree = ET.parse(REKORDBOX_XML)
-    root = xmlTree.getroot()
-    # parse the playlists into a dict with playlist names as keys and lists of track ids as values
-    playlists = root[2][0]
-    origPlaylistNames = []
-    origPlaylistIdLists = []
-    for node in playlists:
-        pname = node.get('Name')
-        origPlaylistNames.append(pname)
-        pids = []
-        for track in node:
-            pids.append(track.get('Key'))
-        origPlaylistIdLists.append(pids)
+    xmlFile = ET.parse(REKORDBOX_XML)
+    root_node = xmlFile.getroot()
+    collection = Collection(root_node[1])
+    playlists = list(Playlist.get_originals(root_node[2][0], collection))
+    for playlist in playlists:
+        playlist.convert()
+    xmlFile.write(NEW_XML)
 
-    pdict = dict(zip(origPlaylistNames, origPlaylistIdLists))
-    print(pdict)
-
-    # make a new playlist with '_MP3' appended to the playlist name if it does not exist
-    for pname in origPlaylistNames:
-        # if this is already an mp3 playlist do nothing
-        if pname.endswith('_MP3'):
-            continue
-        mp3name = pname + '_MP3'
-        # if mp3 version of this playlist exists do nothing
-        if mp3name in origPlaylistNames:
-            continue
-        searchStr = "*/[@Name='" + pname + "']"
-        origPL = playlists.find(searchStr)
-        # add this playlist (NODE in rekordbox notation) to the element tree with an empty tracklist
-        mp3list = ET.SubElement(playlists, 'NODE')
-        mp3list.set('Name', mp3name)
-        mp3list.set('Entries', str(origPL.get('Entries')))
-        mp3list.set('Key', str(origPL.get('Key')))
-        mp3list.set('Type', str(origPL.get('Type')))
-
-    # navigate to the COLLECTIONS tag and iterate through tracks of the collection
-    # the root will be DJ_PLAYLISTS
-    # the second child will be collection
-    collection = root[1]
-    # get the playlist nodes in a list for convenience
-    pNodes = root[2][0].findall('*')
-
+'''
     # track id at which to add a new track. Amount of existing entries +1. Incremented every new track created
     currId = int(collection.get('Entries')) + 1
     for track in collection:
@@ -88,6 +147,7 @@ def convert(REKORDBOX_XML, NEW_XML):
         inPlaylist = False
         origId = track.get('TrackID')
         for pl in pNodes:
+
             searchStr = "*/[@Key='" + origId + "']"
             result = pl.findall(searchStr)
             if result == []:
@@ -96,7 +156,7 @@ def convert(REKORDBOX_XML, NEW_XML):
             pname = pl.get('Name')
             print('Found track {} in playlist {}'.format(origId, pname))
             # find the mp3 version of the playlist and append the new mp3 id to it
-            mp3listName = pname + '_MP3'
+            mp3listName = pname + CONVERTED_PLAYLIST_SUFFIX
             searchStr = "*/[@Name='" + mp3listName + "']"
             mp3list = playlists.find(searchStr)
             newTrack = ET.SubElement(mp3list, 'TRACK')
@@ -123,7 +183,7 @@ def convert(REKORDBOX_XML, NEW_XML):
         # increment the current song id number
         currId += 1
     collection.set('Entries', str(currId-1))
-    xmlTree.write(NEW_XML)
+    '''
 
 
 # convert FLAC at inFlac path to 320 kpbs mp3 at outmp3 path
