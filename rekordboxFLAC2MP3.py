@@ -121,6 +121,9 @@ def parse_args():
             help="location to write converted Rekordbox library XML",
     )
 
+    content_parser = parser.add_mutually_exclusive_group(required=True)
+    content_parser.add_argument('--playlist', '-p', help="the name of a playlist to convert")
+    content_parser.add_argument('--all', '-a', action='store_true', help="convert all playlists")
 
     return parser.parse_args()
 
