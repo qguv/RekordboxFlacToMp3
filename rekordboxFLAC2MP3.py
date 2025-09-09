@@ -1,11 +1,9 @@
 import xml.etree.ElementTree as ET
 import os
 import copy
+import argparse
 
-REKORDBOX_XML = 'C:\\Users\\Scott\\Music\\PioneerDJ\\rekordbox_old.xml'
-NEW_XML = 'C:\\Users\\Scott\\Music\\PioneerDJ\\rekordbox.xml'
-
-def main():
+def convert(REKORDBOX_XML, NEW_XML):
     xmlTree = ET.parse(REKORDBOX_XML)
     root = xmlTree.getroot()
     # parse the playlists into a dict with playlist names as keys and lists of track ids as values
@@ -108,6 +106,25 @@ def ffmpegFLAC2MP3(inFlac, outmp3):
     os.system('ffmpeg -i "{}" -ab 320k -map_metadata 0 -id3v2_version 3 "{}" -nostdin'.format(inFlac, outmp3))
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+            '--input', '-i',
+            type=argparse.FileType('r'),
+            default='-',
+            help="old Rekordbox library XML export",
+    )
+    parser.add_argument(
+            '--output','-o',
+            type=argparse.FileType('w'),
+            default='-',
+            help="location to write converted Rekordbox library XML",
+    )
+
+
+    return parser.parse_args()
+
 
 if __name__ == '__main__':
-    main()
+    args = parse_args()
+    convert(args.input, args.output)
