@@ -108,7 +108,6 @@ class Playlist:
         for i, track_ref_node in enumerate(converted):
             old_track_node = self.collection.get_track(track_ref_node.get('Key'))
             new_track_node = self.collection.get_converted(old_track_node)
-            breakpoint()
             track_ref_node.set('Key', new_track_node.get('TrackID'))
         parent.insert(i+1, converted)
         parent.set('Count', str(int(parent.get('Count')) + 1))
@@ -149,8 +148,9 @@ def convert(REKORDBOX_XML, NEW_XML, only_playlist=None):
     playlists = list(Playlist.get_originals(root_node[2][0], collection))
     for playlist in playlists:
         name = playlist.node.get('Name')
-        print("converting playlist", playlist.node.get('Name'), file=sys.stderr)
-        playlist.convert()
+        if only_playlist is None or only_playlist == name:
+            print("converting playlist", playlist.node.get('Name'), file=sys.stderr)
+            playlist.convert()
     xmlFile.write(NEW_XML)
 
 '''
@@ -247,6 +247,10 @@ def parse_args():
             default='-',
             help="location to write converted Rekordbox library XML",
     )
+    parser.add_argument(
+            '--playlist','-p',
+            help="which playlist to convert",
+    )
 
 
     return parser.parse_args()
@@ -254,4 +258,4 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    convert(args.input, args.output)
+    convert(args.input, args.output, only_playlist=args.playlist)
