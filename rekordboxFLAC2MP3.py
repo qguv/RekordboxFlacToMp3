@@ -45,6 +45,7 @@ class Collection:
     def get_track(self, trackid):
         node = self.node.find(f"TRACK[@TrackID='{trackid}']")
         assert node is not None
+        return node
 
     def get_converted(self, node):
         assert(node is not None)
@@ -55,12 +56,16 @@ class Collection:
         try:
             return self.tracks_by_location[converted_location]
         except KeyError:
-            ffmpegFLAC2MP3(location, converted_location)
+            if pathlib.Path(converted_location).exists():
+                print("using existing mp3")
+            else:
+                ffmpegFLAC2MP3(location, converted_location)
             new_node = copy.deepcopy(node)
             new_node.set('Location', converted_location)
-            new_node.set('TrackID', self.get_largest_trackid() + 1)
+            new_node.set('TrackID', str(self.get_largest_trackid() + 1))
             self.node.append(new_node)
-            self.node.set('Entries', int(self.node.get('Entries')) + 1)
+            self.node.set('Entries', str(int(self.node.get('Entries')) + 1))
+            return new_node
 
 
 class Playlist:
@@ -96,16 +101,17 @@ class Playlist:
         if i + 1 < len(parent) and parent[i+1].get('Name') == newname:
             print("re-creating playlist", newname)
             parent.remove(parent[i+1])
-            parent.set('Entries', int(parent.get('Entries')) - 1)
+            parent.set('Count', str(int(parent.get('Count')) - 1))
 
         converted = copy.deepcopy(self.node)
         converted.set('Name', newname)
         for i, track_ref_node in enumerate(converted):
             old_track_node = self.collection.get_track(track_ref_node.get('Key'))
             new_track_node = self.collection.get_converted(old_track_node)
+            breakpoint()
             track_ref_node.set('Key', new_track_node.get('TrackID'))
         parent.insert(i+1, converted)
-        parent.set('Entries', int(parent.get('Entries')) + 1)
+        parent.set('Count', str(int(parent.get('Count')) + 1))
 
     @classmethod
     def get_originals(cls, node, collection, ancestors=tuple()):
