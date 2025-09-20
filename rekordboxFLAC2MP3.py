@@ -11,7 +11,7 @@ CONVERTED_PLAYLIST_SUFFIX = '_MP3'
 
 
 def from_rekordbox_path(s):
-    assert(s.startswith('file://localhost/'))
+    assert s.startswith('file://localhost/'), f"unrecognized path {s}!"
     s = s[16:]
 
     # strip leading slash on windows
