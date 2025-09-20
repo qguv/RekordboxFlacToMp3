@@ -105,9 +105,12 @@ class Playlist:
 
         converted = copy.deepcopy(self.node)
         converted.set('Name', newname)
-        for i, track_ref_node in enumerate(converted):
+        for track_ref_node in converted:
             old_track_node = self.collection.get_track(track_ref_node.get('Key'))
-            new_track_node = self.collection.get_converted(old_track_node)
+            try:
+                new_track_node = self.collection.get_converted(old_track_node)
+            except NoConversionNeeded:
+                continue
             track_ref_node.set('Key', new_track_node.get('TrackID'))
         parent.insert(i+1, converted)
         parent.set('Count', str(int(parent.get('Count')) + 1))
