@@ -57,7 +57,7 @@ class Collection:
             return self.tracks_by_location[converted_location]
         except KeyError:
             if pathlib.Path(converted_location).exists():
-                print("using existing mp3")
+                print("using existing mp3", file=sys.stderr)
             else:
                 ffmpegFLAC2MP3(location, converted_location)
             new_node = copy.deepcopy(node)
@@ -86,7 +86,7 @@ class Playlist:
         for track_ref in self.node:
             assert(track_ref.tag == 'TRACK')
             trackid = track_ref.get('Key')
-            print(f"looking for track {trackid}")
+            print(f"looking for track {trackid}", file=sys.stderr)
             yield self.collection.get_track(trackid)
 
     def convert(self):
@@ -99,7 +99,7 @@ class Playlist:
 
         # if already converted, delete
         if i + 1 < len(parent) and parent[i+1].get('Name') == newname:
-            print("re-creating playlist", newname)
+            print("re-creating playlist", newname, file=sys.stderr)
             parent.remove(parent[i+1])
             parent.set('Count', str(int(parent.get('Count')) - 1))
 
@@ -142,13 +142,14 @@ def get_playlist_node(playlists_tree, path):
 '''
 
 
-def convert(REKORDBOX_XML, NEW_XML):
+def convert(REKORDBOX_XML, NEW_XML, only_playlist=None):
     xmlFile = ET.parse(REKORDBOX_XML)
     root_node = xmlFile.getroot()
     collection = Collection(root_node[1])
     playlists = list(Playlist.get_originals(root_node[2][0], collection))
     for playlist in playlists:
-        print("converting playlist", playlist.node.get('Name'))
+        name = playlist.node.get('Name')
+        print("converting playlist", playlist.node.get('Name'), file=sys.stderr)
         playlist.convert()
     xmlFile.write(NEW_XML)
 
@@ -222,12 +223,12 @@ def ffmpegFLAC2MP3(inFlac, outmp3):
                   "-nostdin",
         ])
     except subprocess.CalledProcessError:
-        print(f'removing {outmp3}')
+        print(f'removing {outmp3}', file=sys.stderr)
         pathlib.Path(outmp3).unlink()
         sys.exit(16)
     except KeyboardInterrupt:
-        print('interrupted')
-        print(f'removing {outmp3}')
+        print('interrupted', file=sys.stderr)
+        print(f'removing {outmp3}', file=sys.stderr)
         pathlib.Path(outmp3).unlink()
         sys.exit(16)
 
