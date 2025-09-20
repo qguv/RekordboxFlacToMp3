@@ -43,9 +43,11 @@ class Collection:
         return max(int(track.get('TrackID')) for track in self.node)
 
     def get_track(self, trackid):
-        return self.node.find(f"TRACK[@TrackID='{trackid}']")
+        node = self.node.find(f"TRACK[@TrackID='{trackid}']")
+        assert node is not None
 
     def get_converted(self, node):
+        assert(node is not None)
         location = from_rekordbox_path(node.get('Location'))
         if not location.endswith('.flac'):
             raise NoConversionNeeded()
@@ -70,7 +72,7 @@ class Playlist:
         self.collection = collection
 
         self.name = self.node.get('Name')
-        assert(not name.endswith(CONVERTED_PLAYLIST_SUFFIX))
+        assert(not self.name.endswith(CONVERTED_PLAYLIST_SUFFIX))
 
         self.tracks = list(self._get_tracks())
 
@@ -99,8 +101,8 @@ class Playlist:
         converted = copy.deepcopy(self.node)
         converted.set('Name', newname)
         for i, track_ref_node in enumerate(converted):
-            old_track_node = self.collection.get_track(trackid)
-            new_track_node = Collection.get_converted(track_node)
+            old_track_node = self.collection.get_track(track_ref_node.get('Key'))
+            new_track_node = self.collection.get_converted(old_track_node)
             track_ref_node.set('Key', new_track_node.get('TrackID'))
         parent.insert(i+1, converted)
         parent.set('Entries', int(parent.get('Entries')) + 1)
@@ -140,6 +142,7 @@ def convert(REKORDBOX_XML, NEW_XML):
     collection = Collection(root_node[1])
     playlists = list(Playlist.get_originals(root_node[2][0], collection))
     for playlist in playlists:
+        print("converting playlist", playlist.node.get('Name'))
         playlist.convert()
     xmlFile.write(NEW_XML)
 
