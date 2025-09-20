@@ -37,7 +37,13 @@ class NoConversionNeeded(Exception):
 class Collection:
     def __init__(self, node):
         self.node = node
-        self.tracks_by_location = {from_rekordbox_path(track.get('Location')): track for track in self.node)
+        self.tracks_by_location = {from_rekordbox_path(track.get('Location')): track for track in self.node}
+
+    def get_largest_trackid(self):
+        return max(int(track.get('TrackID')) for track in self.node)
+
+    def get_track(self, trackid):
+        return self.node.find(f"TRACK[@TrackID='{trackid}']")
 
     def get_converted(self, node):
         location = from_rekordbox_path(node.get('Location'))
@@ -48,9 +54,11 @@ class Collection:
             return self.tracks_by_location[converted_location]
         except KeyError:
             ffmpegFLAC2MP3(location, converted_location)
-            # TODO FIXME: actually convert and update library
-            # TODO: unknown how track IDs get assigned
-            # TODO: remember to update the Entries key on the collection node
+            new_node = copy.deepcopy(node)
+            new_node.set('Location', converted_location)
+            new_node.set('TrackID', self.get_largest_trackid() + 1)
+            self.node.append(new_node)
+            self.node.set('Entries', int(self.node.get('Entries')) + 1)
 
 
 class Playlist:
@@ -72,7 +80,7 @@ class Playlist:
             assert(track_ref.tag == 'TRACK')
             trackid = track_ref.get('Key')
             print(f"looking for track {trackid}")
-            yield self.collection.node.find(f"TRACK[@TrackID='{trackid}']")
+            yield self.collection.get_track(trackid)
 
     def convert(self):
         assert(not self.name.endswith(CONVERTED_PLAYLIST_SUFFIX))
@@ -84,12 +92,18 @@ class Playlist:
 
         # if already converted, delete
         if i + 1 < len(parent) and parent[i+1].get('Name') == newname:
+            print("re-creating playlist", newname)
             parent.remove(parent[i+1])
+            parent.set('Entries', int(parent.get('Entries')) - 1)
 
         converted = copy.deepcopy(self.node)
         converted.set('Name', newname)
-        #TODO actually convert the tracks using Collection.get_converted(track_node)
+        for i, track_ref_node in enumerate(converted):
+            old_track_node = self.collection.get_track(trackid)
+            new_track_node = Collection.get_converted(track_node)
+            track_ref_node.set('Key', new_track_node.get('TrackID'))
         parent.insert(i+1, converted)
+        parent.set('Entries', int(parent.get('Entries')) + 1)
 
     @classmethod
     def get_originals(cls, node, collection, ancestors=tuple()):
