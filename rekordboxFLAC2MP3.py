@@ -61,7 +61,7 @@ class Collection:
             else:
                 ffmpegFLAC2MP3(location, converted_location)
             new_node = copy.deepcopy(node)
-            new_node.set('Location', converted_location)
+            new_node.set('Location', to_rekordbox_path(converted_location))
             new_node.set('TrackID', str(self.get_largest_trackid() + 1))
             self.node.append(new_node)
             self.node.set('Entries', str(int(self.node.get('Entries')) + 1))
