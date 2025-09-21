@@ -137,13 +137,6 @@ class Playlist:
         return s
 
 
-'''
-def get_playlist_node(playlists_tree, path):
-    searchStr = '/'.join(f"NODE[@Name='{p}']" for p in path)
-    return playlists_tree.find(searchStr)
-'''
-
-
 def convert(REKORDBOX_XML, NEW_XML, only_playlist=None):
     xmlFile = ET.parse(REKORDBOX_XML)
     root_node = xmlFile.getroot()
@@ -155,62 +148,6 @@ def convert(REKORDBOX_XML, NEW_XML, only_playlist=None):
             print("converting playlist", playlist.node.get('Name'), file=sys.stderr)
             playlist.convert()
     xmlFile.write(NEW_XML)
-
-'''
-    # track id at which to add a new track. Amount of existing entries +1. Incremented every new track created
-    currId = int(collection.get('Entries')) + 1
-    for track in collection:
-        rawPath = track.get('Location')
-
-        # skip file if not a flac
-        if not rawPath.lower().endswith('.flac'):
-            continue
-
-        # get path in python parseable format
-        flacPath = from_rekordbox_path(rawPath)
-
-        # get the original track id to figure out what playlists the new mp3 will need to be added to
-        # don't convert if it isn't in any playlists to save time
-        inPlaylist = False
-        origId = track.get('TrackID')
-        for pl in pNodes:
-
-            searchStr = "*/[@Key='" + origId + "']"
-            result = pl.findall(searchStr)
-            if result == []:
-                continue
-            inPlaylist = True
-            pname = pl.get('Name')
-            print('Found track {} in playlist {}'.format(origId, pname))
-            # find the mp3 version of the playlist and append the new mp3 id to it
-            mp3listName = pname + CONVERTED_PLAYLIST_SUFFIX
-            searchStr = "*/[@Name='" + mp3listName + "']"
-            mp3list = playlists.find(searchStr)
-            newTrack = ET.SubElement(mp3list, 'TRACK')
-            newTrack.set('Key', str(currId))
-        if not inPlaylist:
-            continue
-        # at this point, the file was found in at least one playlist
-        # convert the file if mp3 doesn't exist already
-        mp3Path = flacPath[:-5] + '.mp3'
-
-        if os.path.exists(mp3Path):
-            print(f"===\nskipping {mp3Path} (file exists)\n===\n\n")
-        else:
-            # convert the flac to a 320 kpbs mp3
-            ffmpegFLAC2MP3(flacPath, mp3Path)
-
-        # copy the old xml track entry and modify the necessary fields
-        newTrack = copy.deepcopy(track)
-        newTrack.set('TrackID', str(currId))
-        newTrack.set('Location', to_rekordbox_path(mp3Path))
-        newTrack.set('Kind', "MP3 File")
-        newTrack.set('BitRate', "320")
-        collection.append(newTrack)
-        # increment the current song id number
-        currId += 1
-    collection.set('Entries', str(currId-1))
-    '''
 
 
 # convert FLAC at inFlac path to 320 kpbs mp3 at outmp3 path
